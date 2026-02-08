@@ -1,28 +1,117 @@
-# Walkthrough: OpenClaw (Moltbot) Installation & Gemini 3 Configuration
+# Walkthrough: OpenClaw (Moltbot) Configuration with OpenRouter Free Models
 
-We have successfully installed and configured OpenClaw with a Google Gemini 3 backend for WhatsApp.
+We have successfully configured OpenClaw to use OpenRouter's free models instead of Google Gemini.
 
-## Steps Taken
+## Migration Summary
 
-### 1. Installation
-- Installed OpenClaw CLI via npm.
-- Verified Node.js compatibility (v24+).
+### Previous Setup (Google Gemini)
+- Model: `google/gemini-3-pro-preview`
+- Status: API key expired/quota exceeded
+- Issue: Costly and limited by Google quotas
 
-### 2. Configuration & Linking
-- Initialized configuration with `openclaw onboard`.
-- Enabled the WhatsApp plugin.
-- Successfully linked WhatsApp via QR code.
+### New Setup (OpenRouter Free)
+- Model: `openrouter/openrouter/free` (auto-selects best available free model)
+- Alternative tested: `deepseek/deepseek-r1:free`
+- Provider: OpenRouter (free tier with API key)
+- Status: Working and responding to WhatsApp messages
 
-### 3. Troubleshooting & Fixes
-- **Gateway Auth**: Fixed startup errors by setting `gateway.mode` to `local` and configuring a local token.
-- **Model 404 Error**: Discovered that the user's API key specifically supports Gemini 3 models.
-- **Persistent Defaults**: Patched the OpenClaw source code (`dist/agents/defaults.js`) to force the use of `google/gemini-3-pro-preview` as the default model.
-- **API Key**: Updated `auth-profiles.json` with the valid Google Gemini API Key.
+## Configuration Changes
+
+### 1. Model Provider Configuration
+**File**: `~/.openclaw/openclaw.json`
+
+```json
+{
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "openrouter": {
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "apiKey": "YOUR_OPENROUTER_API_KEY",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "openrouter/free",
+            "name": "openrouter-free",
+            "maxTokens": 32000
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openrouter/openrouter/free"
+      }
+    }
+  }
+}
+```
+
+### 2. Authentication Profile
+**File**: `~/.openclaw/agents/main/agent/auth-profiles.json`
+
+```json
+{
+  "version": 1,
+  "profiles": {
+    "openrouter:default": {
+      "type": "api_key",
+      "provider": "openrouter",
+      "key": "YOUR_OPENROUTER_API_KEY"
+    }
+  }
+}
+```
+
+### 3. Session Configuration
+**File**: `~/.openclaw/agents/main/sessions/sessions.json`
+
+Session automatically uses:
+- Provider: `openrouter`
+- Model: `openrouter/openrouter/free`
+- Auth Profile: `openrouter:default`
+
+## Troubleshooting Journey
+
+### Issues Encountered
+
+1. **Model Not Found Error**
+   - Error: `Unknown model: openrouter/deepseek/deepseek-r1:free`
+   - Solution: Switched to `openrouter/openrouter/free` (router model)
+
+2. **Tool Use Not Supported**
+   - Error: `404 No endpoints found that support tool use`
+   - Note: Free models may have limited tool support
+
+3. **Data Policy Error**
+   - Error: `404 No endpoints found matching your data policy`
+   - Note: Some free models have data sharing policies
+
+4. **No API Key Found**
+   - Error: `No API key found for provider "openrouter"`
+   - Solution: Created auth profile with valid OpenRouter API key
+
+### Gateway Restart Required
+After configuration changes:
+```bash
+openclaw gateway restart
+```
 
 ## Final Status
-- **Gateway**: Running and listening.
-- **Model**: `google/gemini-3-pro-preview` active.
-- **WhatsApp**: Connected and responding to messages.
+- **Gateway**: Running on port 18789
+- **Model**: `openrouter/openrouter/free` (gratuito)
+- **Provider**: OpenRouter
+- **WhatsApp**: Connected and responding
+- **Cost**: FREE (using OpenRouter's free tier)
 
 ## Verification
-- User confirmed successful interaction on WhatsApp ("Agora funcionou").
+Test by sending a message to the WhatsApp number: +5511976360192
+
+The bot should respond using OpenRouter's free models.
+
+---
+
+## Historical: Original Gemini Configuration
+See commit `5d30244` for the original Google Gemini setup documentation.
